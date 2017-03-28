@@ -31,11 +31,27 @@ func testProducer() {
 			panic(err)
 		} 
 	}()
-	producer := concurrencyread.LineProducer{f: f}
+	producer := concurrencyread.NewLineProducer(f, 100)
 	producer.Produce()
-	for ! producer.
+	const ConcurrentNum = 2
+	sentinel := make(chan bool, ConcurrentNum)
+	for i := 0; i < ConcurrentNum; i++{
+		go func(){
+			for {
+				num, sent, ok := producer.GetNumberedLine(); 
+				if !ok {
+					break	
+				}
+				fmt.Printf("%d: %s\n", num, sent)
+			}
+			sentinel <- true
+		}()
+	}
+	for i := 0; i < ConcurrentNum; i++{
+		<-sentinel
+	}
 }
 
 func main(){
-
+	testProducer()
 }

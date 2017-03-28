@@ -1,8 +1,8 @@
 package concurrencyread
 
 import (
-	"os"
 	"bufio"
+	"os"
 )
 
 // NumberedLine ..
@@ -40,18 +40,29 @@ func (nuLine *NumberedLine) SetSentence(sentence string) {
 // 	produce line with number.
 type LineProducer struct {
 	lineQueue chan NumberedLine
-	f *os.File
-	isDone bool
+	f         *os.File
+}
+
+// NewLineProducer ..
+// 	create new line producer
+func NewLineProducer(f *os.File, bufsize int) (producer *LineProducer){
+	producer = new(LineProducer)
+	producer.lineQueue = make(chan NumberedLine, bufsize)
+	producer.f = f
+	return
 }
 
 // GetNumberedLine ..
 //	get numbered line
-func (producer *LineProducer) GetNumberedLine() (lineNumber int, sentence string) {
-	nuLine := <- producer.lineQueue
+func (producer *LineProducer) GetNumberedLine() (
+	lineNumber int,
+	sentence string,
+	ok bool) {
+	nuLine, ok := <-producer.lineQueue
 	lineNumber = nuLine.LineNumber()
 	sentence = nuLine.Sentence()
 	return
-} 
+}
 
 // LineQueue ..
 // 	get line producer
@@ -60,7 +71,7 @@ func (producer *LineProducer) LineQueue() chan NumberedLine {
 }
 
 func (producer *LineProducer) readFileAndFilQueue() {
-	
+
 	scanner := bufio.NewScanner(producer.f)
 	scanner.Split(bufio.ScanLines)
 	lineNumber := 0
@@ -70,7 +81,7 @@ func (producer *LineProducer) readFileAndFilQueue() {
 		producer.lineQueue <- nuLine
 		lineNumber++
 	}
-	producer.isDone = true
+	close(producer.lineQueue)
 }
 
 // ProduceBlocked ..
@@ -81,6 +92,6 @@ func (producer *LineProducer) ProduceBlocked() {
 
 // Produce ..
 //	produce asynchronous
-func (producer *LineProducer) Produce(){
+func (producer *LineProducer) Produce() {
 	go producer.readFileAndFilQueue()
 }
